@@ -25,6 +25,8 @@ breeze, and take the mesh into Blender, Unity, Unreal or Godot as GLB or OBJ.
   metres, origin at the trunk base, +Y up.
 - **Seed sharing** — the URL hash carries the species and seed, so the share button copies a link
   that regrows the exact tree. Designs also export as JSON and can be loaded back.
+- **Safe loading** — imported designs are sanitised against hard bounds, so a hand-edited file
+  can never stall the generator.
 - **Preset restore** — click the already-selected species in the field guide to undo sculpting
   and return to its untouched preset.
 
@@ -81,12 +83,13 @@ parallel-transport tube generator, which keeps limbs from twisting as they curve
 ```
 src/generator/   rng, params + species, tube/tube-frame geometry, tree growth, worker
 src/render/      three.js stage: lighting, ground, wind shader, orbiting camera
-src/ui/          schema-driven control panel and control primitives
+src/ui/          schema-driven control panel, control primitives, share-link parsing
 src/export/      GLB / OBJ+MTL / parameter exporters
 src/main.js      app state, interactions, hotkeys, export flow
 tools/           offline software rasterizer for previewing silhouettes in CI
 test/            node:test suites for the generator, worker transfer, panel, exporters,
-                  markup contract and a full app boot against a stubbed WebGL stage
+                  permalinks, markup contract and a full app boot against a stubbed
+                  WebGL stage (including an axe accessibility pass)
 public/thumbs    species thumbnails rendered from the generator itself
 ```
 

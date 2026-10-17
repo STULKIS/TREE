@@ -10,12 +10,13 @@ import {
   SPECIES,
   SPECIES_BY_ID,
   clone,
-  deepMerge,
   makeParams,
   presetParams,
   randomSeed,
+  sanitizeParams,
 } from './generator/params.js';
-import { unpackGeometry } from './generator/transfer.js';
+import { packGeometry, unpackGeometry } from './generator/transfer.js';
+import { buildHash, parseHash } from './ui/permalink.js';
 import { buildPanel } from './ui/panel.js';
 import { exportAs, snapshot } from './export/exporters.js';
 
@@ -33,8 +34,8 @@ const state = {
   params: makeParams('oak', 4815),
   preset: presetParams('oak'),
   quality: prefersLighterPreview ? 'draft' : 'studio',
-  wind: true,
-  rotate: true,
+  wind: !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+  rotate: !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
   format: 'glb',
   includeFoliage: true,
   tree: null,
@@ -84,6 +85,8 @@ const dom = {
   shareBtn: $('btn-share'),
   loadBtn: $('btn-load'),
   loadInput: $('load-input'),
+  shareRow: $('share-row'),
+  shareInput: $('share-input'),
 };
 
 let stage = null;
@@ -168,22 +171,8 @@ function buildOnMainThread() {
   pendingParams = null;
   const tree = generateTree(params);
   applyTree({
-    bark: {
-      position: tree.barkGeometry.attributes.position.array,
-      normal: tree.barkGeometry.attributes.normal.array,
-      uv: tree.barkGeometry.attributes.uv.array,
-      color: tree.barkGeometry.attributes.color.array,
-      index: tree.barkGeometry.index.array,
-    },
-    leaf: tree.leafGeometry
-      ? {
-        position: tree.leafGeometry.attributes.position.array,
-        normal: tree.leafGeometry.attributes.normal.array,
-        uv: tree.leafGeometry.attributes.uv.array,
-        color: tree.leafGeometry.attributes.color.array,
-        index: tree.leafGeometry.index.array,
-      }
-      : null,
+    bark: packGeometry(tree.barkGeometry),
+    leaf: packGeometry(tree.leafGeometry),
     stats: tree.stats,
     bounds: [tree.bounds.min.x, tree.bounds.min.y, tree.bounds.min.z, tree.bounds.max.x, tree.bounds.max.y, tree.bounds.max.z],
     trunkHeight: tree.trunkHeight,
@@ -246,6 +235,8 @@ function buildSpeciesRail() {
     button.className = `species${species.id === state.species ? ' is-active' : ''}`;
     button.dataset.species = species.id;
     button.title = `${species.name} — ${species.latin}`;
+    button.setAttribute('aria-pressed', String(species.id === state.species));
+    button.setAttribute('aria-label', `${species.name} — ${species.latin}`);
     button.innerHTML = `
       <span class="species-thumb"><img src="${import.meta.env.BASE_URL}thumbs/${species.id}.png" alt="" loading="lazy" draggable="false" /></span>
       <span class="species-name">${species.name}</span>
@@ -261,7 +252,9 @@ function syncSpeciesCopy() {
   dom.speciesLatin.textContent = species.latin;
   dom.exportSpecies.textContent = species.name;
   dom.speciesList.querySelectorAll('.species').forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.species === state.params.species);
+    const active = button.dataset.species === state.params.species;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
   });
 }
 
@@ -346,7 +339,9 @@ function setQuality(level) {
   if (!QUALITY[level]) return;
   state.quality = level;
   dom.detailChip.querySelectorAll('button').forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.detail === level);
+    const active = button.dataset.detail === level;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
   });
   if (state.controls?.quality) state.controls.quality.set(level);
   requestBuild();
@@ -364,12 +359,12 @@ function randomSpecies() {
 
 function shareLink() {
   const url = new URL(window.location.href);
-  url.hash = `#${state.params.species}-${state.params.seed}`;
+  url.hash = buildHash(state.params.species, state.params.seed);
   return url.toString();
 }
 
 function syncHash({ replace = true } = {}) {
-  const hash = `#${state.params.species}-${state.params.seed}`;
+  const hash = buildHash(state.params.species, state.params.seed);
   if (window.location.hash === hash) return;
   const url = `${window.location.pathname}${window.location.search}${hash}`;
   if (replace) window.history.replaceState(null, '', url);
@@ -377,22 +372,29 @@ function syncHash({ replace = true } = {}) {
 }
 
 function readHash() {
-  const raw = window.location.hash.replace(/^#/, '').trim();
-  const match = raw.match(/^([a-z]+)-(\d{1,9})$/i);
-  if (!match) return null;
-  const species = SPECIES_BY_ID[match[1].toLowerCase()];
-  if (!species) return null;
-  return { species: species.id, seed: Number(match[2]) };
+  return parseHash(window.location.hash);
 }
 
 async function copyShareLink() {
   const link = shareLink();
+  let copied = false;
   try {
     await navigator.clipboard.writeText(link);
-    toast('Share link copied');
+    copied = true;
   } catch (error) {
-    window.prompt('Copy this link', link);
+    // Clipboard access can be blocked inside embedded previews; fall back to a
+    // selectable field instead of a prompt, which iframes often suppress too.
+    dom.shareRow.hidden = false;
+    dom.shareInput.value = link;
+    dom.shareInput.focus();
+    dom.shareInput.select();
+    try {
+      copied = document.execCommand('copy');
+    } catch (execError) {
+      copied = false;
+    }
   }
+  toast(copied ? 'Share link copied' : 'Share link ready — press Ctrl/Cmd+C');
 }
 
 function applyDesign(payload) {
@@ -402,12 +404,13 @@ function applyDesign(payload) {
   }
   const speciesId = SPECIES_BY_ID[incoming.species] ? incoming.species : state.species;
   const seed = Number(payload?.seed || incoming.seed || state.params.seed);
-  const base = makeParams(speciesId, Number.isFinite(seed) ? seed : state.params.seed);
+  const safeSeed = Number.isFinite(seed) && seed > 0 ? Math.round(seed) : state.params.seed;
+  const preset = presetParams(speciesId);
   state.species = speciesId;
-  state.preset = presetParams(speciesId);
-  state.params = deepMerge(base, incoming);
+  state.preset = preset;
+  state.params = sanitizeParams(incoming, preset);
   state.params.species = speciesId;
-  state.params.seed = Number.isFinite(seed) ? seed : state.params.seed;
+  state.params.seed = safeSeed;
 
   syncSpeciesCopy();
   refreshPanel();
@@ -511,22 +514,52 @@ dom.detailChip.addEventListener('click', (event) => {
   const button = event.target.closest('button[data-detail]');
   if (!button) return;
   setQuality(button.dataset.detail);
-  toast(`Preview detail: ${button.textContent.trim()}`);
+  toast(`Preview: ${button.textContent.trim()} detail`);
 });
 
 /* ------------------------------------------------------------------ modals */
 
+let lastFocused = null;
+
+function focusableIn(node) {
+  return [...node.querySelectorAll('button, input, [href], select, textarea, [tabindex]:not([tabindex="-1"])')]
+    .filter((element) => !element.disabled && element.offsetParent !== null);
+}
+
 function openModal(node) {
+  lastFocused = document.activeElement;
   node.hidden = false;
   document.body.style.overflow = 'hidden';
-  const focusable = node.querySelector('button, input');
-  focusable?.focus({ preventScroll: true });
+  const focusable = focusableIn(node)[0] || node;
+  focusable.focus({ preventScroll: true });
 }
 
 function closeModal(node) {
   node.hidden = true;
   document.body.style.overflow = '';
+  if (node === dom.exportModal) dom.shareRow.hidden = true;
+  if (lastFocused && document.contains(lastFocused)) {
+    lastFocused.focus({ preventScroll: true });
+  }
+  lastFocused = null;
 }
+
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Tab') return;
+  const modal = [dom.exportModal, dom.helpModal].find((node) => !node.hidden);
+  if (!modal) return;
+  const focusable = focusableIn(modal);
+  if (focusable.length === 0) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
 
 [dom.exportModal, dom.helpModal].forEach((modal) => {
   modal.addEventListener('click', (event) => {
@@ -543,7 +576,7 @@ dom.exportBtn.addEventListener('click', () => {
 
 function syncExportSummary() {
   if (!state.tree) return;
-  dom.exportStats.textContent = `${fmtInt(state.tree.stats.triangles)} tris`;
+  dom.exportStats.textContent = `${fmtInt(state.tree.stats.triangles)} tris (preview)`;
   dom.exportSeed.textContent = String(state.params.seed);
   dom.exportSpecies.textContent = SPECIES_BY_ID[state.params.species]?.name || 'Tree';
   dom.foliageRow.classList.toggle('is-disabled', state.format === 'json');
@@ -676,6 +709,10 @@ window.addEventListener('resize', () => {
 
 /* --------------------------------------------------------------------- boot */
 
+if (window.innerWidth <= 900) {
+  dom.panelToggle.setAttribute('aria-expanded', 'false');
+}
+
 const initial = readHash();
 if (initial) {
   state.species = initial.species;
@@ -692,4 +729,6 @@ refreshPanel();
 setQuality(state.quality);
 updateWind();
 stage.setAutoRotate(state.rotate);
+dom.rotate.setAttribute('aria-pressed', String(state.rotate));
+dom.wind.setAttribute('aria-pressed', String(state.wind));
 requestBuild({ frame: true });

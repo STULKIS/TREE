@@ -39,7 +39,7 @@
           <span class="specimen-kicker">Now growing</span>
           <div class="specimen-title">
             <h1 id="species-name">Oak</h1>
-            <span class="modified-dot" id="modified-dot" title="Edited from the species preset" aria-label="Edited from preset"></span>
+            <span class="modified-dot" id="modified-dot" role="img" title="Edited from the species preset" aria-label="Edited from the species preset"></span>
           </div>
           <span class="specimen-latin" id="species-latin">Quercus robur</span>
         </div>
@@ -118,7 +118,7 @@
         </footer>
       </section>
 
-      <div class="hud-stats" id="stats" aria-label="Tree statistics">
+      <div class="hud-stats" id="stats" role="group" aria-label="Tree statistics">
         <div class="stat">
           <span class="stat-value" id="stat-height">—</span>
           <span class="stat-label">Height</span>
@@ -141,7 +141,7 @@
       </div>
 
       <div class="actions">
-        <button class="ghost-btn" id="btn-shot" title="Save a PNG snapshot">
+        <button class="ghost-btn" id="btn-shot" title="Save a PNG snapshot" aria-label="Save a PNG snapshot">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.2l1-1.6h6.6L16.3 6h1.2A2.5 2.5 0 0 1 20 8.5v8A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-8Z" />
             <circle cx="12" cy="12.2" r="3.4" />
@@ -226,6 +226,9 @@
             <span class="dot"></span>
             <span>seed <b id="export-seed">4815</b></span>
           </div>
+          <div class="share-row" id="share-row" hidden>
+            <input id="share-input" readonly aria-label="Shareable tree link" />
+          </div>
           <div class="design-row">
             <button class="design-btn" id="btn-share" type="button">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -287,7 +290,7 @@
           </dl>
           <p class="modal-foot">
             Built with three.js. Tip: use <b>Draft</b> detail while you sculpt, then flip to <b>Max</b> before you
-            export.
+            export. Clicking the already-selected species in the field guide restores its untouched preset.
           </p>
         </div>
       </div>

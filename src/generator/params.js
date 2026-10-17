@@ -67,7 +67,7 @@ const SPECIES_LIST = [
         droop: 0.12, reach: 0.46, split: 2, depth: 4, taper: 0.7, gnarl: 0.44, segments: 9, sides: 6,
       },
       leaves: {
-        style: 'broad', density: 1.5, size: 0.31, sizeVar: 0.3,
+        style: 'broad', density: 1.5, size: 0.29, sizeVar: 0.3,
         colorA: '#3b5325', colorB: '#7c9644', colorTip: '#c4cf7d', wind: 1,
       },
       bark: { colorA: '#3a2f26', colorB: '#7e6a56', roughness: 0.95, lumpiness: 0.17 },
@@ -87,7 +87,7 @@ const SPECIES_LIST = [
         droop: 0.06, reach: 0.5, split: 2, depth: 4, taper: 0.66, gnarl: 0.34, segments: 9, sides: 6,
       },
       leaves: {
-        style: 'broad', density: 1.6, size: 0.17, sizeVar: 0.34,
+        style: 'broad', density: 1.7, size: 0.2, sizeVar: 0.34,
         colorA: '#54672c', colorB: '#9aa949', colorTip: '#d9cf72', wind: 1.1,
       },
       bark: { colorA: '#4a4038', colorB: '#85786a', roughness: 0.92, lumpiness: 0.12 },
@@ -107,7 +107,7 @@ const SPECIES_LIST = [
         droop: 0.24, reach: 0.52, split: 2, depth: 4, taper: 0.6, gnarl: 0.3, segments: 8, sides: 5,
       },
       leaves: {
-        style: 'broad', density: 1.0, size: 0.23, sizeVar: 0.34,
+        style: 'broad', density: 1.1, size: 0.24, sizeVar: 0.34,
         colorA: '#5a7235', colorB: '#a4b862', colorTip: '#d8d992', wind: 1.35,
       },
       bark: { colorA: '#c9c2ac', colorB: '#f0ead8', roughness: 0.78, lumpiness: 0.055 },
@@ -120,14 +120,14 @@ const SPECIES_LIST = [
     note: 'Long, combed branches that pour toward the ground.',
     icon: 'willow',
     params: {
-      trunk: { height: 7.2, radius: 0.56, flare: 0.95, lean: 4.5, wobble: 0.55, segments: 28, sides: 10 },
+      trunk: { height: 7.2, radius: 0.56, flare: 1.15, lean: 4.5, wobble: 0.55, segments: 28, sides: 10 },
       roots: { count: 5, reach: 1.25 },
       branches: {
         levels: 12, start: 0.28, end: 0.93, angle: 63, angleVar: 14, upBias: -0.3,
         droop: 0.72, reach: 0.72, split: 2, depth: 4, taper: 0.63, gnarl: 0.5, segments: 10, sides: 6,
       },
       leaves: {
-        style: 'slender', density: 1.5, size: 0.2, sizeVar: 0.3,
+        style: 'slender', density: 1.5, size: 0.24, sizeVar: 0.3,
         colorA: '#6f8749', colorB: '#b3c37a', colorTip: '#dfe0a8', wind: 1.4,
       },
       bark: { colorA: '#493d2e', colorB: '#82705a', roughness: 0.96, lumpiness: 0.18 },
@@ -167,7 +167,7 @@ const SPECIES_LIST = [
         droop: 0.1, reach: 0.64, split: 2, depth: 4, taper: 0.61, gnarl: 0.48, segments: 9, sides: 6,
       },
       leaves: {
-        style: 'broad', density: 1.6, size: 0.17, sizeVar: 0.32,
+        style: 'broad', density: 1.7, size: 0.19, sizeVar: 0.32,
         colorA: '#a35f6d', colorB: '#e7a8b3', colorTip: '#fbe7e4', wind: 1.2,
       },
       bark: { colorA: '#392b2a', colorB: '#6f5550', roughness: 0.93, lumpiness: 0.14 },
@@ -226,4 +226,84 @@ export function presetParams(speciesId) {
 
 export function randomSeed() {
   return Math.floor(1000 + Math.random() * 98999);
+}
+
+/* --------------------------------------------------------------- validation */
+
+const LEAF_STYLES = new Set(['broad', 'slender', 'needle', 'none']);
+
+/** Hard bounds for values that can arrive from a saved design file. */
+const LIMITS = {
+  'trunk.height': [1.5, 24],
+  'trunk.radius': [0.03, 1.8],
+  'trunk.flare': [0, 2],
+  'trunk.lean': [0, 25],
+  'trunk.wobble': [0, 1.5],
+  'trunk.segments': [8, 60],
+  'trunk.sides': [5, 24],
+  'roots.count': [0, 9],
+  'roots.reach': [0.1, 3],
+  'branches.levels': [1, 24],
+  'branches.start': [0.02, 0.95],
+  'branches.end': [0.05, 1],
+  'branches.angle': [5, 110],
+  'branches.angleVar': [0, 40],
+  'branches.upBias': [-1.5, 1.5],
+  'branches.droop': [0, 1.5],
+  'branches.reach': [0.1, 1.2],
+  'branches.split': [1, 4],
+  'branches.depth': [1, 6],
+  'branches.taper': [0.2, 0.95],
+  'branches.gnarl': [0, 1.5],
+  'branches.segments': [4, 20],
+  'branches.sides': [4, 12],
+  'leaves.density': [0, 2.6],
+  'leaves.size': [0.02, 1],
+  'leaves.sizeVar': [0, 0.8],
+  'leaves.wind': [0, 2],
+  'bark.roughness': [0.1, 1],
+  'bark.lumpiness': [0, 0.5],
+};
+
+const INTEGER_PATHS = new Set([
+  'trunk.segments', 'trunk.sides', 'roots.count', 'branches.levels', 'branches.split',
+  'branches.depth', 'branches.segments', 'branches.sides',
+]);
+
+const COLOR_PATHS = new Set(['leaves.colorA', 'leaves.colorB', 'leaves.colorTip', 'bark.colorA', 'bark.colorB']);
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
+/**
+ * Coerces a candidate parameter tree onto a trusted fallback, clamping numbers
+ * to safe bounds. Used when loading a design file so a hand-edited or corrupt
+ * JSON can never stall the generator.
+ */
+export function sanitizeParams(candidate, fallback) {
+  const walk = (value, base, path) => {
+    if (typeof base === 'number') {
+      let next = Number(value);
+      if (!Number.isFinite(next)) return base;
+      const limits = LIMITS[path];
+      if (limits) next = Math.min(limits[1], Math.max(limits[0], next));
+      if (INTEGER_PATHS.has(path)) next = Math.round(next);
+      return next;
+    }
+    if (typeof base === 'string') {
+      if (path === 'leaves.style') return LEAF_STYLES.has(value) ? value : base;
+      if (COLOR_PATHS.has(path)) return typeof value === 'string' && HEX_COLOR.test(value) ? value : base;
+      if (path === 'species') return SPECIES_BY_ID[value] ? value : base;
+      return typeof value === 'string' && value.length <= 48 ? value : base;
+    }
+    if (base && typeof base === 'object') {
+      const source = value && typeof value === 'object' ? value : {};
+      const out = {};
+      for (const key of Object.keys(base)) {
+        out[key] = walk(source[key], base[key], path ? `${path}.${key}` : key);
+      }
+      return out;
+    }
+    return base;
+  };
+
+  return walk(candidate, fallback, '');
 }

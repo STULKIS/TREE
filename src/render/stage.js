@@ -110,7 +110,9 @@ export class Stage {
       preserveDrawingBuffer: true,
       powerPreference: 'high-performance',
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const lightDevice = window.innerWidth < 900 || (navigator.hardwareConcurrency || 8) <= 4;
+    this.lightDevice = lightDevice;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lightDevice ? 1.6 : 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -131,7 +133,7 @@ export class Stage {
     this.controls.minDistance = 2;
     this.controls.maxDistance = 95;
     this.controls.maxPolarAngle = Math.PI * 0.502;
-    this.controls.autoRotate = true;
+    this.controls.autoRotate = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     this.controls.autoRotateSpeed = 0.32;
     this.controls.target.set(0, 5, 0);
     this.controls.addEventListener('start', () => {
@@ -159,7 +161,7 @@ export class Stage {
 
     const key = new THREE.DirectionalLight(0xffeed2, 2.1);
     key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.mapSize.set(lightDevice ? 1024 : 2048, lightDevice ? 1024 : 2048);
     key.shadow.bias = -0.0006;
     key.shadow.normalBias = 0.025;
     key.shadow.radius = 3;
@@ -238,7 +240,7 @@ export class Stage {
       roughness: 0.96,
       metalness: 0,
       name: 'Sapling_Bark',
-    }), 0.016, 0.11, 'wind-bark');
+    }), 0.022, 0.11, 'wind-bark');
 
     this.leafMaterial = addWind(new THREE.MeshStandardMaterial({
       vertexColors: true,
@@ -246,7 +248,7 @@ export class Stage {
       metalness: 0,
       side: THREE.DoubleSide,
       name: 'Sapling_Leaves',
-    }), 0.085, 0.1, 'wind-leaf');
+    }), 0.14, 0.1, 'wind-leaf');
   }
 
   buildTreeGroup() {
@@ -336,7 +338,7 @@ export class Stage {
     // Nudge the subject left of centre on desktop so the control panel does not
     // sit on top of the crown.
     const panelShift = window.innerWidth > 900 && !document.body.classList.contains('panel-collapsed')
-      ? 150
+      ? 130
       : 0;
     if (panelShift > 0) {
       const viewForward = target.clone().sub(destination).normalize();

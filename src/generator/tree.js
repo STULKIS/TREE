@@ -241,8 +241,9 @@ function addBroadleafFoliage(builder, samples, depth, p, rng, palette, stats) {
   ];
   const tier = tiers[Math.min(fromTip, tiers.length - 1)];
   if (slender && fromTip > 2) return;
-  // the lowest trunk branches carry a little leaf cover but not much
-  if (fromTip === 0 && depth === 1) return;
+  // trunk-level limbs stay bare on mature trees, but a depth-1 tree still
+  // needs its foliage, so only skip when there are deeper limbs to clothe
+  if (fromTip === 0 && depth === 1 && p.branches.depth > 1) return;
 
   const addCluster = (at, count) => {
     for (let i = 0; i < count; i += 1) {
