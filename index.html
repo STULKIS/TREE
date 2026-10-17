@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a100d" />
+    <meta
+      name="description"
+      content="Sapling is a procedural tree studio for the browser. Grow, shape and export game-ready trees as GLB or OBJ."
+    />
+    <title>Sapling — Procedural Tree Studio</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d1511'/%3E%3Cpath d='M16 26V15' stroke='%23d3ef8a' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M16 16c0-6 4-9 9-9 0 6-4 9-9 9Z' fill='%23a9cc6d'/%3E%3Cpath d='M16 20c0-4.5-3-7-7-7 0 4.5 3 7 7 7Z' fill='%237fa655'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div class="app" id="app">
+      <div class="stage-wrap">
+        <canvas id="stage" aria-label="3D preview of the generated tree"></canvas>
+        <div class="stage-vignette" aria-hidden="true"></div>
+        <div class="stage-grain" aria-hidden="true"></div>
+      </div>
+
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Sapling home" id="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M16 27V14.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+              <path d="M16 16.2c0-5.6 3.7-8.7 9.2-8.7 0 5.7-3.7 8.7-9.2 8.7Z" fill="currentColor" opacity=".95" />
+              <path d="M16 20.4c0-4.2-2.8-6.6-7-6.6 0 4.2 2.8 6.6 7 6.6Z" fill="currentColor" opacity=".6" />
+              <path d="M16 24.5c0-3.1-2-4.9-5.1-4.9 0 3.1 2 4.9 5.1 4.9Z" fill="currentColor" opacity=".35" />
+            </svg>
+          </span>
+          <span class="brand-copy">
+            <span class="wordmark">Sapling</span>
+            <span class="tagline">procedural tree studio</span>
+          </span>
+        </a>
+
+        <div class="specimen" aria-live="polite">
+          <span class="specimen-kicker">Now growing</span>
+          <div class="specimen-title">
+            <h1 id="species-name">Oak</h1>
+            <span class="modified-dot" id="modified-dot" title="Edited from the species preset" aria-label="Edited from preset"></span>
+          </div>
+          <span class="specimen-latin" id="species-latin">Quercus robur</span>
+        </div>
+
+        <div class="top-actions">
+          <button class="icon-btn" id="btn-wind" aria-pressed="true" title="Wind (Space)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+              <path d="M3 8h9.5a3 3 0 1 0-2.8-4" />
+              <path d="M3 12.5h15a3 3 0 1 1-2.8 4" />
+              <path d="M3 17h7.5a2.5 2.5 0 1 1-2.3 3.3" />
+            </svg>
+            <span class="sr-only">Toggle wind</span>
+          </button>
+          <button class="icon-btn" id="btn-rotate" aria-pressed="true" title="Turntable (T)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 12a8 8 0 1 1-2.6-5.9" />
+              <path d="M20.5 4v4.5H16" />
+            </svg>
+            <span class="sr-only">Toggle turntable</span>
+          </button>
+          <button class="icon-btn" id="btn-help" title="Help (H)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+              <circle cx="12" cy="12" r="8.5" />
+              <path d="M9.8 9.2a2.3 2.3 0 0 1 4.4 1c0 1.5-2.2 1.8-2.2 3.2" />
+              <path d="M12 17.1h.01" stroke-width="2.2" />
+            </svg>
+            <span class="sr-only">Help</span>
+          </button>
+        </div>
+      </header>
+
+      <aside class="rail" aria-label="Species field guide">
+        <div class="rail-head">
+          <span class="rail-kicker">Field guide</span>
+          <span class="rail-count">06</span>
+        </div>
+        <div class="species-list" id="species-list"></div>
+      </aside>
+
+      <section class="panel" id="panel" aria-label="Tree controls">
+        <header class="panel-head">
+          <div class="panel-heading">
+            <span class="eyebrow">Cultivation</span>
+            <h2>Shape the tree</h2>
+          </div>
+          <button class="icon-btn ghost" id="btn-panel-toggle" aria-expanded="true" title="Collapse panel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+            <span class="sr-only">Collapse controls</span>
+          </button>
+        </header>
+        <div class="panel-scroll" id="panel-body"></div>
+        <footer class="panel-foot">
+          <div class="seed-row">
+            <label for="seed-input">Seed</label>
+            <input id="seed-input" inputmode="numeric" autocomplete="off" spellcheck="false" />
+            <button class="icon-btn small" id="btn-dice" title="Random seed (R)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="4" width="16" height="16" rx="4" />
+                <circle cx="9" cy="9" r="1.1" fill="currentColor" stroke="none" />
+                <circle cx="15" cy="9" r="1.1" fill="currentColor" stroke="none" />
+                <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none" />
+                <circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none" />
+                <circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
+          </div>
+          <button class="surprise" id="btn-surprise" title="New seed, new tree (R)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M6 18 18 6" />
+              <path d="M9 6h9v9" />
+            </svg>
+            <span>New seed</span>
+          </button>
+        </footer>
+      </section>
+
+      <div class="hud-stats" id="stats" aria-label="Tree statistics">
+        <div class="stat">
+          <span class="stat-value" id="stat-height">—</span>
+          <span class="stat-label">Height</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-value" id="stat-spread">—</span>
+          <span class="stat-label">Crown</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-value" id="stat-leaves">—</span>
+          <span class="stat-label">Leaf cards</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-value" id="stat-tris">—</span>
+          <span class="stat-label">Triangles</span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="ghost-btn" id="btn-shot" title="Save a PNG snapshot">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.2l1-1.6h6.6L16.3 6h1.2A2.5 2.5 0 0 1 20 8.5v8A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-8Z" />
+            <circle cx="12" cy="12.2" r="3.4" />
+          </svg>
+          <span>Snapshot</span>
+        </button>
+        <button class="primary-btn" id="btn-export">
+          <span>Export tree</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 4v11" />
+            <path d="M8 11.5 12 15.5l4-4" />
+            <path d="M5 18.5h14" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="detail-chip" id="detail-chip" title="Preview quality">
+        <span class="detail-label">Detail</span>
+        <div class="detail-options" role="group" aria-label="Preview detail">
+          <button data-detail="draft">Draft</button>
+          <button data-detail="studio" class="is-active">Studio</button>
+          <button data-detail="max">Max</button>
+        </div>
+      </div>
+
+      <div class="grow-indicator" id="grow-indicator" aria-hidden="true"><span></span></div>
+
+      <div class="modal" id="export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title" hidden>
+        <div class="modal-backdrop" data-close></div>
+        <div class="modal-card export-card">
+          <header class="modal-head">
+            <div>
+              <span class="eyebrow">Take it with you</span>
+              <h2 id="export-title">Export your tree</h2>
+            </div>
+            <button class="icon-btn ghost" data-close title="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+              <span class="sr-only">Close</span>
+            </button>
+          </header>
+          <p class="modal-copy">
+            Geoready geometry with baked vertex colours, meters, origin at the trunk base. Foliage exports as
+            double-sided cards, so it drops straight into game engines and DCC tools.
+          </p>
+          <div class="format-list" id="format-list">
+            <button class="format is-active" data-format="glb">
+              <span class="format-icon">GLB</span>
+              <span class="format-copy">
+                <b>glTF binary</b>
+                <small>Recommended — mesh + materials in one file</small>
+              </span>
+              <span class="format-check" aria-hidden="true"></span>
+            </button>
+            <button class="format" data-format="obj">
+              <span class="format-icon">OBJ</span>
+              <span class="format-copy">
+                <b>Wavefront OBJ</b>
+                <small>Universal geometry, zipped with its .mtl</small>
+              </span>
+              <span class="format-check" aria-hidden="true"></span>
+            </button>
+            <button class="format" data-format="json">
+              <span class="format-icon">JSON</span>
+              <span class="format-copy">
+                <b>Seed &amp; parameters</b>
+                <small>Reproduce or share this exact tree</small>
+              </span>
+              <span class="format-check" aria-hidden="true"></span>
+            </button>
+          </div>
+          <label class="check-row" id="foliage-row">
+            <input type="checkbox" id="export-foliage" checked />
+            <span class="check-box" aria-hidden="true"></span>
+            <span>Include foliage</span>
+          </label>
+          <div class="export-summary">
+            <span id="export-species">Oak</span>
+            <span class="dot"></span>
+            <span id="export-stats">—</span>
+            <span class="dot"></span>
+            <span>seed <b id="export-seed">4815</b></span>
+          </div>
+          <div class="design-row">
+            <button class="design-btn" id="btn-share" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.4 1.4" />
+                <path d="M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1.4-1.4" />
+              </svg>
+              Copy share link
+            </button>
+            <button class="design-btn" id="btn-load" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 16V5" />
+                <path d="M8 8.5 12 4.5l4 4" />
+                <path d="M5 18.5h14" />
+              </svg>
+              Load design .json
+            </button>
+            <input type="file" id="load-input" accept="application/json,.json" hidden />
+          </div>
+          <button class="primary-btn wide" id="btn-download">
+            <span id="download-label">Download .glb</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 4v11" />
+              <path d="M8 11.5 12 15.5l4-4" />
+              <path d="M5 18.5h14" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+        <div class="modal-backdrop" data-close></div>
+        <div class="modal-card">
+          <header class="modal-head">
+            <div>
+              <span class="eyebrow">Field notes</span>
+              <h2 id="help-title">How Sapling grows</h2>
+            </div>
+            <button class="icon-btn ghost" data-close title="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+              <span class="sr-only">Close</span>
+            </button>
+          </header>
+          <p class="modal-copy">
+            Every tree is grown from a seed with a recursive model: a tapered trunk throws branches, each branch
+            splits again until the twigs carry leaf cards. Nothing is baked or downloaded — it is all generated in
+            your browser.
+          </p>
+          <dl class="help-list">
+            <div><dt>Drag</dt><dd>Orbit the tree</dd></div>
+            <div><dt>Scroll</dt><dd>Move closer or further</dd></div>
+            <div><dt>Right-drag</dt><dd>Pan and reframe</dd></div>
+            <div><dt><span class="key">R</span></dt><dd>Grow a fresh seed</dd></div>
+            <div><dt><span class="key">T</span></dt><dd>Toggle turntable</dd></div>
+            <div><dt><span class="key">Space</span></dt><dd>Toggle wind</dd></div>
+            <div><dt><span class="key">E</span></dt><dd>Open export</dd></div>
+          </dl>
+          <p class="modal-foot">
+            Built with three.js. Tip: use <b>Draft</b> detail while you sculpt, then flip to <b>Max</b> before you
+            export.
+          </p>
+        </div>
+      </div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+      <div class="boot" id="boot">
+        <div class="boot-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <path d="M16 27V14.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+            <path d="M16 16.2c0-5.6 3.7-8.7 9.2-8.7 0 5.7-3.7 8.7-9.2 8.7Z" fill="currentColor" />
+            <path d="M16 20.4c0-4.2-2.8-6.6-7-6.6 0 4.2 2.8 6.6 7 6.6Z" fill="currentColor" opacity=".6" />
+          </svg>
+        </div>
+        <div class="boot-text">
+          <span class="wordmark">Sapling</span>
+          <span id="boot-status">planting the seed</span>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
