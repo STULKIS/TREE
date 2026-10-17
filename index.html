@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Sapling is a browser-based procedural tree studio: pick a species, tune branches and foliage, roll seeds, and export GLB or OBJ meshes." />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b0e0b" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0e0b'/%3E%3Cpath d='M16 27V15M16 17l-7-7M16 15l7-8M16 21l-4-3' stroke='%23c3e07d' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <title>Sapling · procedural tree studio</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#viewport">Skip to the specimen</a>
+
+    <header class="masthead">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 34 34" aria-hidden="true" focusable="false">
+          <path d="M17 31V17M17 19 9 11M17 17l8-9M17 23l-5-4M17 14l3-4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" />
+          <path d="M5 31h24" stroke="currentColor" stroke-width="1" opacity="0.5" />
+        </svg>
+        <div>
+          <p class="eyebrow">Procedural botany</p>
+          <h1>Sapling</h1>
+        </div>
+      </div>
+      <div class="specimen">
+        <p id="specimen-name">Oak · seed 1</p>
+        <span class="mode-pill" id="mode-label">Live 3D</span>
+      </div>
+      <dl class="hud" aria-label="Specimen statistics">
+        <div><dt>Triangles</dt> <dd id="hud-triangles">–</dd></div>
+        <div><dt>Leaves</dt> <dd id="hud-leaves">–</dd></div>
+        <div class="hide-md"><dt>Height</dt> <dd id="hud-height">–</dd></div>
+        <div class="hide-md"><dt>Build</dt> <dd id="hud-time">–</dd></div>
+      </dl>
+    </header>
+
+    <div class="banner" id="fallback-banner" role="status" hidden>
+      <p id="fallback-text">The 3D view is unavailable.</p>
+      <button type="button" class="btn primary" id="retry-3d">Retry 3D</button>
+      <button type="button" class="btn" id="details-open" aria-haspopup="dialog">Details</button>
+      <button type="button" class="icon-btn" id="banner-dismiss" aria-label="Dismiss this message">×</button>
+    </div>
+
+    <main class="studio">
+      <aside class="rail" aria-labelledby="species-title">
+        <h2 id="species-title">Species</h2>
+        <div id="species-list" role="group" aria-label="Species presets"></div>
+      </aside>
+
+      <section class="viewport" id="viewport" aria-label="Specimen view" data-mode="webgl">
+        <canvas id="still" class="still-canvas" role="img" tabindex="0" hidden aria-label="Software render of the specimen. Arrow keys orbit."></canvas>
+        <p class="viewport-hint" aria-hidden="true">Drag to orbit · Space wind · T turntable · ? help</p>
+        <div class="toast" id="toast" role="presentation" hidden></div>
+      </section>
+
+      <section class="panel" id="panel" aria-labelledby="panel-title">
+        <div class="panel-head">
+          <h2 id="panel-title">Parameters</h2>
+          <button type="button" class="text-btn" id="panel-toggle" aria-expanded="false" aria-controls="panel-body">Parameters</button>
+        </div>
+        <div id="panel-body"></div>
+      </section>
+    </main>
+
+    <footer class="actionbar">
+      <button type="button" class="btn" id="surprise" title="Random species, seed and values (shortcut: none)">Surprise</button>
+      <button type="button" class="btn" id="snapshot" title="Save a PNG of the current view">Snapshot</button>
+      <button type="button" class="btn primary" id="export-open" aria-haspopup="dialog" title="Export (E)">Export</button>
+      <span class="spacer"></span>
+      <button type="button" class="pill-btn" id="wind-toggle" aria-pressed="true" title="Wind (Space)">Wind</button>
+      <button type="button" class="pill-btn orbit-only" id="turntable-toggle" aria-pressed="false" title="Turntable (T)">Turntable</button>
+      <span id="build-state" aria-hidden="true">Ready</span>
+      <button type="button" class="btn" id="help-open" aria-haspopup="dialog" title="Keyboard help (?)">Help</button>
+    </footer>
+
+    <div id="status" class="sr-only" role="status" aria-live="polite"></div>
+
+    <div class="modal" id="dlg-export" role="dialog" aria-labelledby="export-title" hidden>
+      <div class="modal-card">
+        <div class="modal-head">
+          <h2 id="export-title">Export</h2>
+          <button type="button" class="icon-btn" data-close aria-label="Close export">×</button>
+        </div>
+        <p>Exports are regenerated at full studio quality from the current, cleaned-up parameters.</p>
+        <div class="export-grid">
+          <button type="button" class="btn" id="export-glb"><strong>GLB</strong><small>Binary glTF 2.0 · bark + foliage materials</small></button>
+          <button type="button" class="btn" id="export-obj"><strong>OBJ + MTL</strong><small>Text mesh · one group per material</small></button>
+          <button type="button" class="btn" id="export-json"><strong>Design JSON</strong><small>Every parameter, rebuilds this tree exactly</small></button>
+          <button type="button" class="btn" id="export-png"><strong>PNG</strong><small>Snapshot of the current view</small></button>
+        </div>
+        <div class="actions">
+          <button type="button" class="text-btn" id="import-json">Import design JSON…</button>
+          <input type="file" id="import-file" accept="application/json,.json" hidden />
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="dlg-help" role="dialog" aria-labelledby="help-title" hidden>
+      <div class="modal-card">
+        <div class="modal-head">
+          <h2 id="help-title">Keyboard and tips</h2>
+          <button type="button" class="icon-btn" data-close aria-label="Close help">×</button>
+        </div>
+        <dl class="keys">
+          <dt><kbd>Space</kbd></dt><dd>Toggle wind (3D view)</dd>
+          <dt><kbd>T</kbd></dt><dd>Toggle turntable (3D view)</dd>
+          <dt><kbd>D</kbd></dt><dd>Roll a new seed</dd>
+          <dt><kbd>R</kbd></dt><dd>Reset parameters to the species preset</dd>
+          <dt><kbd>E</kbd></dt><dd>Open export</dd>
+          <dt><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Z</kbd></dt><dd>Undo (Shift for redo)</dd>
+          <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Orbit the focused view</dd>
+          <dt><kbd>?</kbd></dt><dd>This help</dd>
+          <dt><kbd>Esc</kbd></dt><dd>Close dialogs</dd>
+        </dl>
+        <p style="margin-top:14px">Share links live in the address bar: copy it to share the exact tree, seed and every slider.</p>
+        <div class="actions"><button type="button" class="btn primary" data-close>Got it</button></div>
+      </div>
+    </div>
+
+    <div class="modal" id="dlg-details" role="dialog" aria-labelledby="details-title" hidden>
+      <div class="modal-card">
+        <div class="modal-head">
+          <h2 id="details-title">Rendering diagnostics</h2>
+          <button type="button" class="icon-btn" data-close aria-label="Close diagnostics">×</button>
+        </div>
+        <p>Share this if the 3D view fails on your machine. Nothing is sent anywhere; copy it manually.</p>
+        <pre id="diag-text" tabindex="0"></pre>
+        <div class="actions">
+          <button type="button" class="btn primary" id="diag-copy">Copy diagnostics</button>
+          <button type="button" class="btn" data-close>Close</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
