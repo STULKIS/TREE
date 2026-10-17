@@ -5,6 +5,8 @@ import './style.css';
 
 import * as THREE from 'three';
 import { Stage } from './render/stage.js';
+import { createRenderContext, diagnoseWebGL, explainReport, reportToText } from './render/webgl.js';
+import { renderStillPreview } from './render/cpuPreview.js';
 import { generateTree } from './generator/tree.js';
 import {
   SPECIES,
@@ -21,6 +23,9 @@ import { buildPanel } from './ui/panel.js';
 import { exportAs, snapshot } from './export/exporters.js';
 
 const QUALITY = {
+  // software previews are a still image: lighter bark, but the raster budget
+  // is triangle-capped anyway, so foliage can stay reasonably full
+  cpu: { leaves: 0.62, trunkSides: 0.85, branchSides: 0.78, segments: 0.8, trunkSegments: 0.8 },
   draft: { leaves: 0.42, trunkSides: 0.72, branchSides: 0.78, segments: 0.72, trunkSegments: 0.72 },
   studio: { leaves: 1, trunkSides: 1, branchSides: 1, segments: 1, trunkSegments: 1 },
   max: { leaves: 1.45, trunkSides: 1.3, branchSides: 1.25, segments: 1.15, trunkSegments: 1.2 },
@@ -40,6 +45,8 @@ const state = {
   includeFoliage: true,
   tree: null,
   firstTree: true,
+  previewMode: 'webgl',
+  softwareResult: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -87,16 +94,41 @@ const dom = {
   loadInput: $('load-input'),
   shareRow: $('share-row'),
   shareInput: $('share-input'),
+  stage: $('stage'),
+  cpuStage: $('cpu-stage'),
+  previewBanner: $('preview-banner'),
+  previewReason: $('preview-banner-reason'),
+  webglModal: $('webgl-modal'),
+  webglReason: $('webgl-reason'),
+  webglReport: $('webgl-report'),
+  detailsBtn: $('btn-webgl-details'),
+  copyDiagnostics: $('btn-webgl-copy'),
 };
 
 let stage = null;
-try {
-  stage = new Stage($('stage'));
-} catch (error) {
-  console.error('WebGL unavailable', error);
-  dom.bootStatus.textContent = 'WebGL is unavailable in this browser';
-  throw error;
+let webglReport = null;
+
+/**
+ * Builds the 3D stage. Any failure is captured rather than thrown: the studio
+ * swaps to a software still preview instead of dying on a blank screen.
+ */
+function initStage(canvas = dom.stage) {
+  const probe = createRenderContext(canvas);
+  if (!probe.ok) {
+    webglReport = diagnoseWebGL({ attempts: probe.attempts });
+    console.warn('[Sapling] WebGL 2 context unavailable.\n' + reportToText(webglReport));
+    return null;
+  }
+  try {
+    return new Stage(canvas, { context: probe.context });
+  } catch (error) {
+    console.error('[Sapling] 3D renderer failed to initialise', error);
+    webglReport = diagnoseWebGL({ error, attempts: probe.attempts });
+    return null;
+  }
 }
+
+stage = initStage();
 
 /* ------------------------------------------------------------------ worker */
 
@@ -132,7 +164,8 @@ try {
 }
 
 function effectiveParams(params, quality = state.quality) {
-  const q = QUALITY[quality] || QUALITY.studio;
+  const level = state.previewMode === 'software' ? 'cpu' : quality;
+  const q = QUALITY[level] || QUALITY.studio;
   const next = clone(params);
   next.leaves.density = Math.max(0.05, next.leaves.density * q.leaves);
   next.trunk.sides = Math.max(5, Math.round(next.trunk.sides * q.trunkSides));
@@ -192,11 +225,17 @@ function applyTree(data) {
 
   const shouldFrame = state.reframe || state.firstTree;
   state.reframe = false;
-  stage.setTree(state.tree, { instant: state.firstTree, frame: shouldFrame });
-  stage.setBarkRoughness?.(state.params.bark.roughness);
-  if (state.growNext) {
-    stage.grow?.(state.firstTree ? 1.3 : 0.6);
+
+  if (stage) {
+    stage.setTree(state.tree, { instant: state.firstTree, frame: shouldFrame });
+    stage.setBarkRoughness?.(state.params.bark.roughness);
+    if (state.growNext) {
+      stage.grow?.(state.firstTree ? 1.3 : 0.6);
+      state.growNext = false;
+    }
+  } else {
     state.growNext = false;
+    scheduleSoftwarePreview({ immediate: state.firstTree });
   }
   updateStats(data.stats);
 
@@ -212,6 +251,125 @@ function applyTree(data) {
     }, 380);
   }
   pump();
+}
+
+/* ------------------------------------------------------- preview fallback */
+
+let softwareTimer = null;
+
+function scheduleSoftwarePreview({ immediate = false } = {}) {
+  if (!state.tree) return;
+  clearTimeout(softwareTimer);
+  const draw = () => {
+    const result = renderStillPreview(dom.cpuStage, state.tree, {
+      azimuth: -0.55,
+      elevation: 0.16,
+    });
+    state.softwareResult = result;
+    if (!result.ok && result.reason !== 'no-tree') {
+      dom.previewReason.textContent = `${explainReport(webglReport)} The still-image fallback could not draw either.`;
+      console.warn('[Sapling] software preview failed:', result.reason);
+    } else if (result.ok) {
+      dom.previewReason.textContent = `${explainReport(webglReport)} Showing a still image rendered on the CPU.`;
+    }
+  };
+  if (immediate) draw();
+  else softwareTimer = setTimeout(draw, 140);
+}
+
+function syncWebGLUI() {
+  const software = state.previewMode === 'software';
+  dom.cpuStage.hidden = !software;
+  dom.stage.hidden = software;
+  dom.previewBanner.hidden = !software;
+  dom.detailChip.hidden = software;
+  dom.wind.disabled = software;
+  dom.rotate.disabled = software;
+  dom.wind.setAttribute('aria-disabled', String(software));
+  dom.rotate.setAttribute('aria-disabled', String(software));
+  dom.wind.title = software ? 'Wind needs WebGL' : 'Wind (Space)';
+  dom.rotate.title = software ? 'Turntable needs WebGL' : 'Turntable (T)';
+  if (software) {
+    dom.previewReason.textContent = explainReport(webglReport);
+    dom.webglReason.textContent = explainReport(webglReport);
+    dom.webglReport.textContent = reportToText(webglReport);
+  }
+}
+
+function onContextLost(event) {
+  event.preventDefault();
+  console.warn('[Sapling] WebGL context lost');
+  stage?.dispose?.();
+  stage = null;
+  webglReport = diagnoseWebGL({ error: new Error('WebGL context lost (GPU reset or too many live contexts)') });
+  state.previewMode = 'software';
+  syncWebGLUI();
+  requestBuild();
+  toast('3D context lost — switched to the software preview');
+}
+
+function attachStage(next) {
+  stage = next;
+  state.previewMode = 'webgl';
+  stage.canvas?.addEventListener?.('webglcontextlost', onContextLost);
+  stage.onUserInteract = () => {
+    if (!state.rotate) return;
+    state.rotate = false;
+    dom.rotate.setAttribute('aria-pressed', 'false');
+    stage?.setAutoRotate(false);
+  };
+  syncWebGLUI();
+  if (state.tree) {
+    stage.setTree(state.tree, { instant: true });
+    stage.setBarkRoughness?.(state.params.bark.roughness);
+  }
+  stage.setAutoRotate(state.rotate);
+  updateWind();
+}
+
+function enterSoftwareMode() {
+  state.previewMode = 'software';
+  if (!webglReport) webglReport = diagnoseWebGL();
+  syncWebGLUI();
+  console.warn('[Sapling] running in software preview mode.\n' + reportToText(webglReport));
+}
+
+function retryWebGL() {
+  // A canvas that failed to provide a context can stay poisoned, so start fresh.
+  const fresh = dom.stage.cloneNode(false);
+  fresh.hidden = false;
+  dom.stage.replaceWith(fresh);
+  dom.stage = fresh;
+  const next = initStage(fresh);
+  if (!next) {
+    syncWebGLUI();
+    toast('3D is still unavailable — see Details for the reason');
+    return false;
+  }
+  attachStage(next);
+  toast('3D preview is back');
+  return true;
+}
+
+function copyDiagnostics() {
+  const text = reportToText(webglReport);
+  const fallback = () => {
+    dom.webglReport.textContent = text;
+    const range = document.createRange();
+    range.selectNodeContents(dom.webglReport);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    toast('Diagnostics selected — press Ctrl/Cmd+C');
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(
+      () => toast('Diagnostics copied'),
+      fallback,
+    );
+  } else {
+    fallback();
+  }
 }
 
 /* -------------------------------------------------------------------- UI */
@@ -444,17 +602,16 @@ dom.wind.addEventListener('click', () => {
 });
 
 dom.rotate.addEventListener('click', () => {
+  if (!stage) {
+    toast('The turntable needs WebGL — try Retry 3D');
+    return;
+  }
   state.rotate = !state.rotate;
   dom.rotate.setAttribute('aria-pressed', String(state.rotate));
   stage.setAutoRotate(state.rotate);
 });
 
-stage.onUserInteract = () => {
-  if (!state.rotate) return;
-  state.rotate = false;
-  dom.rotate.setAttribute('aria-pressed', 'false');
-  stage.setAutoRotate(false);
-};
+if (stage) attachStage(stage);
 
 dom.dice.addEventListener('click', () => setSeed(randomSeed(), { announce: true }));
 dom.surprise.addEventListener('click', () => {
@@ -487,7 +644,12 @@ dom.seedInput.addEventListener('keydown', (event) => {
 
 dom.brand.addEventListener('click', (event) => {
   event.preventDefault();
-  stage.resetView();
+  if (stage) {
+    stage.resetView();
+    return;
+  }
+  scheduleSoftwarePreview({ immediate: true });
+  toast('Software preview repainted');
 });
 
 /* panel behaviour */
@@ -551,7 +713,7 @@ function closeModal(node) {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Tab') return;
-  const modal = [dom.exportModal, dom.helpModal].find((node) => !node.hidden);
+  const modal = [dom.exportModal, dom.helpModal, dom.webglModal].find((node) => !node.hidden);
   if (!modal) return;
   const focusable = focusableIn(modal);
   if (focusable.length === 0) return;
@@ -566,13 +728,26 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-[dom.exportModal, dom.helpModal].forEach((modal) => {
+[dom.exportModal, dom.helpModal, dom.webglModal].forEach((modal) => {
   modal.addEventListener('click', (event) => {
     if (event.target.closest('[data-close]')) closeModal(modal);
   });
 });
 
 dom.help.addEventListener('click', () => openModal(dom.helpModal));
+
+document.querySelectorAll('[data-webgl-retry]').forEach((button) => {
+  button.addEventListener('click', () => {
+    if (retryWebGL()) closeModal(dom.webglModal);
+  });
+});
+
+dom.detailsBtn.addEventListener('click', () => {
+  syncWebGLUI();
+  openModal(dom.webglModal);
+});
+
+dom.copyDiagnostics.addEventListener('click', copyDiagnostics);
 
 dom.exportBtn.addEventListener('click', () => {
   syncExportSummary();
@@ -662,7 +837,16 @@ dom.downloadBtn.addEventListener('click', async () => {
 });
 
 dom.shotBtn.addEventListener('click', () => {
-  const dataUrl = stage.screenshot();
+  let dataUrl = null;
+  if (stage) {
+    dataUrl = stage.screenshot();
+  } else if (state.softwareResult?.ok) {
+    dataUrl = dom.cpuStage.toDataURL('image/png');
+  }
+  if (!dataUrl) {
+    toast('Nothing to capture yet — grow a tree first');
+    return;
+  }
   snapshot(`sapling-${state.params.species}-${state.params.seed}.png`, dataUrl);
   toast('Snapshot saved');
 });
@@ -674,6 +858,7 @@ window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     if (!dom.exportModal.hidden) closeModal(dom.exportModal);
     if (!dom.helpModal.hidden) closeModal(dom.helpModal);
+    if (!dom.webglModal.hidden) closeModal(dom.webglModal);
     return;
   }
   if (typing) return;
@@ -689,7 +874,7 @@ window.addEventListener('keydown', (event) => {
       setSeed(randomSeed(), { announce: true });
     }
   } else if (key === 't') {
-    dom.rotate.click();
+    if (!dom.rotate.disabled) dom.rotate.click();
   } else if (key === 'e') {
     dom.exportBtn.click();
   } else if (key === 'h' || key === '?') {
@@ -730,10 +915,12 @@ buildSpeciesRail();
 syncSpeciesCopy();
 syncSeed();
 syncHash();
+if (!stage) enterSoftwareMode();
+
 refreshPanel();
 setQuality(state.quality);
 updateWind();
-stage.setAutoRotate(state.rotate);
+stage?.setAutoRotate(state.rotate);
 dom.rotate.setAttribute('aria-pressed', String(state.rotate));
 dom.wind.setAttribute('aria-pressed', String(state.wind));
 requestBuild({ frame: true });

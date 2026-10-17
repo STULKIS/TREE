@@ -46,27 +46,54 @@ const server = await createServer({
       enforce: 'pre',
       resolveId(id, importer) {
         if (id.endsWith('/render/stage.js') && importer) return '\0stub-stage';
+        if (id.endsWith('/render/webgl.js') && importer) return '\0stub-webgl';
         return null;
       },
       load(id) {
-        if (id !== '\0stub-stage') return null;
-        return `
-          export class Stage {
-            constructor(canvas) {
-              this.canvas = canvas;
-              this.calls = [];
-              globalThis.__stage = this;
+        if (id === '\0stub-stage') {
+          return `
+            export class Stage {
+              constructor(canvas) {
+                this.canvas = canvas;
+                this.calls = [];
+                globalThis.__stage = this;
+              }
+              setTree(tree, options) { this.tree = tree; this.options = options; this.calls.push('setTree'); }
+              setWind(value) { this.wind = value; }
+              setAutoRotate(value) { this.autoRotate = value; }
+              setBarkRoughness(value) { this.roughness = value; }
+              grow() {}
+              frameTree() {}
+              resetView() {}
+              dispose() {}
+              screenshot() { return 'data:image/png;base64,'; }
+              render() {}
             }
-            setTree(tree, options) { this.tree = tree; this.options = options; this.calls.push('setTree'); }
-            setWind(value) { this.wind = value; }
-            setAutoRotate(value) { this.autoRotate = value; }
-            frameTree() {}
-            resetView() {}
-            setUserInteract() {}
-            screenshot() { return 'data:image/png;base64,'; }
-            render() {}
-          }
-        `;
+          `;
+        }
+        if (id === '\0stub-webgl') {
+          return `
+            export function createRenderContext() {
+              if (globalThis.__webglOk === false) {
+                return { ok: false, reason: 'no-webgl2', attempts: [{ api: 'webgl2', result: 'null', attributes: {} }] };
+              }
+              return { ok: true, api: 'webgl2', context: {}, attributes: {}, attempts: [], gpu: null };
+            }
+            export function describeContext() { return null; }
+            export function diagnoseWebGL({ error = null, attempts = [] } = {}) {
+              return {
+                at: '2026-10-17T00:00:00.000Z', browser: 'TestBrowser 1', userAgent: 'test',
+                platform: 'test', language: 'en', webgl2: false, webgl1: false,
+                webgl2Info: null, webgl1Info: null, embedded: true, devicePixelRatio: 1,
+                screen: '800x600', hardwareConcurrency: 4,
+                error: error ? String(error.message || error) : null, attempts,
+              };
+            }
+            export function explainReport() { return 'WebGL 2 is unavailable in this test browser.'; }
+            export function reportToText() { return 'Sapling preview diagnostics — WebGL 2: unavailable'; }
+          `;
+        }
+        return null;
       },
     },
   ],

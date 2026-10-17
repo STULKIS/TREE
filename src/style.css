@@ -25,6 +25,12 @@
   box-sizing: border-box;
 }
 
+/* author styles such as .detail-chip { display: flex } would otherwise beat
+   the user-agent rule for the hidden attribute */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   height: 100%;
@@ -96,12 +102,18 @@ dt {
   z-index: 0;
 }
 
-#stage {
+#stage,
+#cpu-stage {
   display: block;
   width: 100%;
   height: 100%;
   outline: none;
   touch-action: none;
+}
+
+#stage[hidden],
+#cpu-stage[hidden] {
+  display: none;
 }
 
 .stage-vignette {
@@ -111,6 +123,153 @@ dt {
   background:
     radial-gradient(120% 90% at 50% 42%, transparent 38%, rgba(3, 7, 5, 0.55) 100%),
     linear-gradient(180deg, rgba(4, 8, 6, 0.32) 0%, transparent 22%, transparent 74%, rgba(3, 6, 4, 0.55) 100%);
+}
+
+.preview-banner {
+  position: fixed;
+  z-index: 26;
+  left: 24px;
+  bottom: 106px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(520px, calc(100vw - 48px));
+  padding: 11px 12px 11px 14px;
+  border-radius: 15px;
+  border: 1px solid rgba(233, 196, 143, 0.28);
+  background: linear-gradient(180deg, rgba(34, 30, 20, 0.94), rgba(20, 24, 17, 0.95));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-sm);
+  animation: rise-in 0.5s var(--ease) both;
+}
+
+.preview-banner[hidden] {
+  display: none;
+}
+
+.preview-banner-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--warm);
+  box-shadow: 0 0 0 4px rgba(233, 196, 143, 0.14);
+}
+
+.preview-banner-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.preview-banner-copy b {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--warm);
+}
+
+.preview-banner-copy span {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.preview-banner-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  flex: none;
+}
+
+.banner-btn {
+  padding: 7px 11px;
+  border-radius: 9px;
+  border: 1px solid rgba(233, 196, 143, 0.34);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #f4e3c4;
+  background: rgba(233, 196, 143, 0.1);
+  transition: all 0.18s var(--ease);
+  white-space: nowrap;
+}
+
+.banner-btn:hover {
+  background: rgba(233, 196, 143, 0.2);
+}
+
+.banner-btn.subtle {
+  border-color: rgba(214, 233, 201, 0.16);
+  color: var(--muted);
+  background: transparent;
+}
+
+.banner-btn.subtle:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.webgl-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.webgl-tips li {
+  position: relative;
+  padding-left: 18px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.webgl-tips li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-deep);
+  opacity: 0.7;
+}
+
+.webgl-tips b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.webgl-tips code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 10.5px;
+  color: var(--text);
+}
+
+.webgl-report {
+  max-height: 190px;
+  overflow: auto;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(214, 233, 201, 0.1);
+  background: rgba(4, 8, 6, 0.6);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.6;
+  color: rgba(214, 233, 201, 0.72);
+  white-space: pre-wrap;
+  word-break: break-word;
+  scrollbar-width: thin;
 }
 
 .stage-grain {
@@ -1860,6 +2019,20 @@ body.is-growing .grow-indicator span {
 
   .detail-chip {
     display: none;
+  }
+
+  .preview-banner {
+    left: 12px;
+    right: 12px;
+    top: 68px;
+    bottom: auto;
+    max-width: none;
+    flex-wrap: wrap;
+  }
+
+  .preview-banner-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .actions {

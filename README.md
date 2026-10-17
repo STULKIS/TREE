@@ -39,8 +39,21 @@ npm run build    # static build in dist/
 npm test
 ```
 
-Requires a WebGL2 browser. Nothing is uploaded — generation and export happen entirely on
-the client.
+Requires a WebGL 2 browser for the live view. Nothing is uploaded — generation and export
+happen entirely on the client.
+
+### If the 3D preview does not start
+
+Sapling probes for a WebGL 2 context before building the renderer. When that fails (hardware
+acceleration off, a remote desktop session, a lost GPU context, or an older browser) the
+studio switches to a **software still preview** rendered on the CPU: sculpting, seed sharing
+and GLB/OBJ export keep working, and a banner offers **Retry 3D** plus a copyable diagnostics
+report. Common fixes:
+
+- enable hardware acceleration in the browser settings and restart the browser,
+- close other tabs that are holding WebGL contexts,
+- check `chrome://gpu` or `about:support` for a blocked/blacklisted driver,
+- try a different browser if the GPU is simply unavailable (VMs, remote sessions).
 
 Optional: regenerate the species thumbnails after changing a preset.
 

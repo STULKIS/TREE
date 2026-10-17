@@ -101,15 +101,26 @@ function addWind(material, amplitude, heightScale, cacheKey) {
 }
 
 export class Stage {
-  constructor(canvas) {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   * @param {{ context?: WebGL2RenderingContext, antialias?: boolean }} options
+   *   A context pre-created by `createRenderContext` is reused so the probe and
+   *   the renderer cannot disagree about what the browser supports.
+   */
+  constructor(canvas, options = {}) {
     this.canvas = canvas;
-    this.renderer = new THREE.WebGLRenderer({
-      canvas,
-      antialias: true,
-      alpha: true,
-      preserveDrawingBuffer: true,
-      powerPreference: 'high-performance',
-    });
+    this.context = options.context || null;
+    this.renderer = new THREE.WebGLRenderer(
+      this.context
+        ? { canvas, context: this.context }
+        : {
+          canvas,
+          antialias: options.antialias !== false,
+          alpha: true,
+          preserveDrawingBuffer: true,
+          powerPreference: 'high-performance',
+        },
+    );
     const lightDevice = window.innerWidth < 900 || (navigator.hardwareConcurrency || 8) <= 4;
     this.lightDevice = lightDevice;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lightDevice ? 1.6 : 2));
@@ -372,6 +383,14 @@ export class Stage {
   resetView({ instant = false } = {}) {
     if (!this.currentBounds) return;
     this.frameTree(this.currentBounds, { instant, angle: 0.5 });
+  }
+
+  dispose() {
+    this.renderer?.setAnimationLoop?.(null);
+    this.observer?.disconnect?.();
+    this.controls?.dispose?.();
+    this.renderer?.dispose?.();
+    this.canvas?.removeEventListener?.('webglcontextlost', this.onContextLost);
   }
 
   /** Animates the tree rising out of the ground. */

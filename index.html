@@ -15,8 +15,21 @@
     <div class="app" id="app">
       <div class="stage-wrap">
         <canvas id="stage" aria-label="3D preview of the generated tree"></canvas>
+        <canvas id="cpu-stage" aria-label="Software-rendered still preview of the generated tree" hidden></canvas>
         <div class="stage-vignette" aria-hidden="true"></div>
         <div class="stage-grain" aria-hidden="true"></div>
+      </div>
+
+      <div class="preview-banner" id="preview-banner" role="status" hidden>
+        <span class="preview-banner-dot" aria-hidden="true"></span>
+        <div class="preview-banner-copy">
+          <b>Software preview</b>
+          <span id="preview-banner-reason">WebGL 2 is unavailable, so the live view cannot run.</span>
+        </div>
+        <div class="preview-banner-actions">
+          <button class="banner-btn" type="button" data-webgl-retry>Retry 3D</button>
+          <button class="banner-btn subtle" type="button" id="btn-webgl-details">Details</button>
+        </div>
       </div>
 
       <header class="topbar">
@@ -291,6 +304,39 @@
           <p class="modal-foot">
             Built with three.js. Tip: use <b>Draft</b> detail while you sculpt, then flip to <b>Max</b> before you
             export. Clicking the already-selected species in the field guide restores its untouched preset.
+          </p>
+        </div>
+      </div>
+
+      <div class="modal" id="webgl-modal" role="dialog" aria-modal="true" aria-labelledby="webgl-title" hidden>
+        <div class="modal-backdrop" data-close></div>
+        <div class="modal-card">
+          <header class="modal-head">
+            <div>
+              <span class="eyebrow">Preview</span>
+              <h2 id="webgl-title">Why the 3D view stopped</h2>
+            </div>
+            <button class="icon-btn ghost" data-close title="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+              <span class="sr-only">Close</span>
+            </button>
+          </header>
+          <p class="modal-copy" id="webgl-reason">The 3D renderer could not start.</p>
+          <ul class="webgl-tips">
+            <li>Make sure <b>hardware acceleration</b> is enabled in your browser settings, then restart it.</li>
+            <li>If you are on a remote desktop or virtual machine, the GPU may be unavailable — try a local browser.</li>
+            <li>Closing other tabs with 3D content can free a lost WebGL context.</li>
+            <li>Firefox and Chrome both let you check <code>chrome://gpu</code> or <code>about:support</code> for driver status.</li>
+          </ul>
+          <pre class="webgl-report" id="webgl-report"></pre>
+          <div class="design-row">
+            <button class="design-btn" type="button" id="btn-webgl-copy">Copy diagnostics</button>
+            <button class="primary-btn" type="button" data-webgl-retry>Try again</button>
+          </div>
+          <p class="modal-foot">
+            Sculpting and exports keep working without WebGL — only the live 3D view depends on it.
           </p>
         </div>
       </div>
