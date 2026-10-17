@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0e1412" />
+    <title>Sapling — procedural tree studio</title>
+    <meta name="description" content="Sapling: a procedural tree and vegetation studio that runs entirely in your browser. Pick a species, tweak parameters, roll seeds, export GLB or OBJ." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='13' r='10' fill='%23a6d64a'/%3E%3Crect x='14' y='18' width='4' height='12' rx='1' fill='%237a5a3a'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#panel">Skip to parameters</a>
+    <div id="app" class="app" data-mode="booting">
+      <header class="topbar" role="banner">
+        <div class="brand">
+          <span class="brand__mark" aria-hidden="true"></span>
+          <h1 class="brand__name">Sapling</h1>
+          <span class="brand__tag">procedural tree studio</span>
+        </div>
+        <div class="specimen" id="specimen" aria-label="Current specimen">
+          <span class="specimen__name" id="specimen-name">Oak</span>
+          <span class="specimen__latin" id="specimen-latin">Quercus robur</span>
+          <span class="specimen__seed" id="specimen-seed">seed 1</span>
+        </div>
+        <dl class="hud" id="hud" aria-label="Mesh statistics">
+          <div class="hud__item"><dt>Triangles</dt><dd id="hud-triangles">—</dd></div>
+          <div class="hud__item"><dt>Leaves</dt><dd id="hud-leaves">—</dd></div>
+          <div class="hud__item"><dt>Height</dt><dd id="hud-height">—</dd></div>
+          <div class="hud__item hud__item--quiet"><dt>Mode</dt><dd id="hud-mode">booting</dd></div>
+        </dl>
+      </header>
+
+      <div class="banner" id="banner" role="region" aria-label="Rendering notice" hidden>
+        <p class="banner__text"><strong>Software preview.</strong> <span id="banner-reason">WebGL 2 is unavailable.</span> Generation, sharing and export still work.</p>
+        <div class="banner__actions">
+          <button type="button" class="btn btn--small" id="retry-3d">Retry 3D</button>
+          <button type="button" class="btn btn--small btn--ghost" id="details-3d">Details</button>
+          <button type="button" class="btn btn--icon" id="banner-dismiss" aria-label="Dismiss notice">×</button>
+        </div>
+      </div>
+
+      <main class="studio">
+        <nav class="rail" id="species-rail" aria-label="Species">
+          <h2 class="rail__title">Species</h2>
+          <ul class="rail__list" id="species-list" role="list"></ul>
+        </nav>
+
+        <section class="viewport" id="viewport" aria-label="Tree preview">
+          <div class="stage" id="stage"></div>
+          <canvas class="still" id="still-canvas" hidden aria-label="Software rendered preview of the tree" role="img"></canvas>
+          <div class="viewport__overlay" id="viewport-overlay" aria-hidden="true">
+            <div class="busy" id="busy" hidden><span class="busy__dot"></span> growing…</div>
+          </div>
+          <div class="viewport__controls" id="viewport-controls">
+            <button type="button" class="chip" id="wind" aria-pressed="false" title="Wind (space)">Wind</button>
+            <button type="button" class="chip" id="turntable" aria-pressed="false" title="Turntable (T)">Turntable</button>
+            <button type="button" class="chip" id="recenter" title="Recenter camera (R)">Recenter</button>
+          </div>
+        </section>
+
+        <aside class="panel" id="panel" aria-label="Parameters">
+          <div class="panel__head">
+            <h2 class="panel__title">Parameters</h2>
+            <button type="button" class="btn btn--icon panel__close" id="panel-close" aria-label="Close parameters">×</button>
+          </div>
+          <div class="seedrow">
+            <label class="seedrow__label" for="seed">Seed</label>
+            <input class="seedrow__input" id="seed" name="seed" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" value="1" />
+            <button type="button" class="btn" id="dice" title="Roll a new seed">⚄ Roll</button>
+            <button type="button" class="btn btn--ghost" id="reset" title="Reset parameters to the species preset (R)">Reset</button>
+          </div>
+          <div class="panel__scroll">
+            <div id="params"></div>
+          </div>
+        </aside>
+      </main>
+
+      <footer class="actionbar" role="contentinfo">
+        <div class="actionbar__group">
+          <button type="button" class="btn btn--accent" id="surprise">Surprise me</button>
+          <button type="button" class="btn" id="snapshot">Snapshot</button>
+          <button type="button" class="btn" id="export" aria-haspopup="dialog">Export</button>
+          <button type="button" class="btn" id="share">Share</button>
+        </div>
+        <div class="actionbar__group">
+          <button type="button" class="btn btn--ghost" id="panel-toggle" aria-controls="panel" aria-expanded="false">Parameters</button>
+          <button type="button" class="btn btn--ghost" id="help" aria-haspopup="dialog">Help <kbd>?</kbd></button>
+        </div>
+      </footer>
+
+      <div class="sr-only" id="status" role="status" aria-live="polite" aria-atomic="true"></div>
+      <div class="toasts" id="toasts"></div>
+
+      <div class="modal" id="help-modal" hidden aria-hidden="true">
+        <div class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="help-title">
+          <div class="modal__head">
+            <h2 id="help-title">Sapling</h2>
+            <button type="button" class="btn btn--icon" data-close aria-label="Close help">×</button>
+          </div>
+          <div class="modal__body">
+            <p>Pick a species on the left, tune the parameters on the right, roll seeds until the silhouette feels right, then export. Everything runs in your browser — nothing is uploaded.</p>
+            <h3>Shortcuts</h3>
+            <dl class="shortcuts">
+              <div><dt><kbd>Space</kbd></dt><dd>Toggle wind</dd></div>
+              <div><dt><kbd>T</kbd></dt><dd>Toggle turntable</dd></div>
+              <div><dt><kbd>R</kbd></dt><dd>Reset parameters &amp; camera</dd></div>
+              <div><dt><kbd>D</kbd></dt><dd>Roll a new seed</dd></div>
+              <div><dt><kbd>E</kbd></dt><dd>Export</dd></div>
+              <div><dt><kbd>S</kbd></dt><dd>Snapshot PNG</dd></div>
+              <div><dt><kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Z</kbd></dt><dd>Undo last change</dd></div>
+              <div><dt><kbd>?</kbd></dt><dd>This help</dd></div>
+              <div><dt><kbd>Esc</kbd></dt><dd>Close dialogs</dd></div>
+            </dl>
+            <h3>Exports</h3>
+            <p>GLB (binary glTF 2.0 with bark and foliage materials and vertex colours), OBJ + MTL, a design JSON that rebuilds the tree exactly, and PNG snapshots. Exports are always regenerated at studio quality.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal" id="export-modal" hidden aria-hidden="true">
+        <div class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="export-title">
+          <div class="modal__head">
+            <h2 id="export-title">Export</h2>
+            <button type="button" class="btn btn--icon" data-close aria-label="Close export">×</button>
+          </div>
+          <div class="modal__body">
+            <p class="muted" id="export-summary">The mesh is regenerated at full studio quality before export.</p>
+            <div class="export-grid">
+              <button type="button" class="btn btn--accent" id="export-glb" autofocus>GLB <small>binary glTF 2.0</small></button>
+              <button type="button" class="btn" id="export-obj">OBJ + MTL <small>zipped</small></button>
+              <button type="button" class="btn" id="export-json">Design JSON <small>parameters + stats</small></button>
+              <button type="button" class="btn" id="export-png">PNG snapshot <small>current view</small></button>
+            </div>
+            <h3>Import</h3>
+            <label class="file">
+              <span>Load a design JSON</span>
+              <input type="file" id="import-json" accept="application/json,.json" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal" id="diagnostics-modal" hidden aria-hidden="true">
+        <div class="modal__dialog modal__dialog--wide" role="dialog" aria-modal="true" aria-labelledby="diagnostics-title">
+          <div class="modal__head">
+            <h2 id="diagnostics-title">Rendering diagnostics</h2>
+            <button type="button" class="btn btn--icon" data-close aria-label="Close diagnostics">×</button>
+          </div>
+          <div class="modal__body">
+            <pre class="diagnostics" id="diagnostics-text" tabindex="0"></pre>
+            <div class="modal__actions">
+              <button type="button" class="btn" id="copy-diagnostics">Copy</button>
+              <button type="button" class="btn btn--ghost" id="retry-3d-dialog">Retry 3D</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
