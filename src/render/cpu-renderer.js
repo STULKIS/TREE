@@ -96,7 +96,7 @@ export function renderStill(ctx, result, opts) {
 
   // Bark triangles are culled individually when sub-pixel. Foliage is culled per whole card:
   // a card either reads as a fan or disappears, never as scattered slivers.
-  const SLIVER_PX2 = 0.25;
+  const SLIVER_PX2 = 0.05;
   const triMeta = (t) => {
     if (t < nb) return { idx: bark.indices, base: t * 3, p: pb, grp: bark };
     return { idx: foliage.indices, base: (t - nb) * 3, p: pf, grp: foliage };
