@@ -142,8 +142,9 @@ function effectiveParams(params, quality = state.quality) {
   return next;
 }
 
-function requestBuild({ frame = false } = {}) {
+function requestBuild({ frame = false, grow = false } = {}) {
   if (frame) state.reframe = true;
+  if (grow) state.growNext = true;
   pendingParams = effectiveParams(state.params);
   if (inFlight) return;
   pump();
@@ -193,6 +194,10 @@ function applyTree(data) {
   state.reframe = false;
   stage.setTree(state.tree, { instant: state.firstTree, frame: shouldFrame });
   stage.setBarkRoughness?.(state.params.bark.roughness);
+  if (state.growNext) {
+    stage.grow?.(state.firstTree ? 1.3 : 0.6);
+    state.growNext = false;
+  }
   updateStats(data.stats);
 
   document.body.classList.remove('is-growing');
@@ -278,7 +283,7 @@ function selectSpecies(id) {
       refreshPanel();
       syncSeed();
       markModified();
-      requestBuild({ frame: true });
+      requestBuild({ frame: true, grow: true });
       updateWind();
       toast(`${SPECIES_BY_ID[id]?.name || 'Tree'} restored to preset`);
     }
@@ -292,7 +297,7 @@ function selectSpecies(id) {
   markModified();
   syncSeed();
   syncHash();
-  requestBuild({ frame: true });
+  requestBuild({ frame: true, grow: true });
   updateWind();
   if (window.innerWidth <= 900) document.body.classList.remove('panel-open');
 }
@@ -417,7 +422,7 @@ function applyDesign(payload) {
   syncSeed();
   syncHash();
   markModified();
-  requestBuild({ frame: true });
+  requestBuild({ frame: true, grow: true });
   updateWind();
 }
 
@@ -463,7 +468,7 @@ dom.surprise.addEventListener('click', () => {
   syncSeed();
   syncHash();
   markModified();
-  requestBuild({ frame: true });
+  requestBuild({ frame: true, grow: true });
   updateWind();
   toast(`Surprise — ${SPECIES_BY_ID[species].name} from seed ${seed}`);
 });

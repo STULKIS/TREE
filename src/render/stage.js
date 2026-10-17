@@ -143,6 +143,8 @@ export class Stage {
 
     this.clock = new THREE.Clock();
     this.elapsed = 0;
+    this.growth = 1;
+    this.growthDuration = 1.1;
     this.windTarget = 0;
     this.windStrength = 0;
     this.tween = null;
@@ -372,6 +374,13 @@ export class Stage {
     this.frameTree(this.currentBounds, { instant, angle: 0.5 });
   }
 
+  /** Animates the tree rising out of the ground. */
+  grow(duration = 1.1) {
+    this.growth = 0;
+    this.growthDuration = duration;
+    this.treeGroup.scale.set(1, 0.001, 1);
+  }
+
   setBarkRoughness(value) {
     if (typeof value === 'number') this.barkMaterial.roughness = value;
   }
@@ -433,6 +442,13 @@ export class Stage {
       this.camera.position.lerpVectors(this.tween.fromPos, this.tween.toPos, eased);
       this.controls.target.lerpVectors(this.tween.fromTarget, this.tween.toTarget, eased);
       if (t >= 1) this.tween = null;
+    }
+
+    if (this.growth < 1) {
+      this.growth = Math.min(1, this.growth + dt / this.growthDuration);
+      const eased = 1 - Math.pow(1 - this.growth, 3);
+      this.treeGroup.scale.y = 0.001 + 0.999 * eased;
+      if (this.growth >= 1) this.treeGroup.scale.y = 1;
     }
 
     this.controls.update();
