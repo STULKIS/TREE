@@ -4,23 +4,7 @@
  */
 import { generateTree } from './tree.js';
 import { clone, makeParams } from './params.js';
-
-function packGeometry(geometry) {
-  if (!geometry) return null;
-  const position = geometry.attributes.position.array;
-  const normal = geometry.attributes.normal.array;
-  const uv = geometry.attributes.uv.array;
-  const color = geometry.attributes.color.array;
-  const index = geometry.index.array;
-  return {
-    position,
-    normal,
-    uv,
-    color,
-    index,
-    transfer: [position.buffer, normal.buffer, uv.buffer, color.buffer, index.buffer],
-  };
-}
+import { packGeometry } from './transfer.js';
 
 self.onmessage = (event) => {
   const { id, params, quality } = event.data;

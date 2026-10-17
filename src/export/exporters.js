@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import JSZip from 'jszip';
 
 /**
  * Builders return Blobs so they can be unit-tested; the download helpers are
@@ -91,6 +90,7 @@ export async function buildOBJ(tree, params, options) {
   const base = treeSlug(params, tree.stats);
   const obj = `mtllib ${base}.mtl\n${exporter.parse(scene)}`;
 
+  const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
   zip.file(`${base}.obj`, obj);
   zip.file(`${base}.mtl`, mtlText(params));

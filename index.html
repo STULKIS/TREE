@@ -108,12 +108,12 @@
               </svg>
             </button>
           </div>
-          <button class="surprise" id="btn-surprise" title="New seed, new tree (R)">
+          <button class="surprise" id="btn-surprise" title="Random species and seed (Shift+R)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M6 18 18 6" />
               <path d="M9 6h9v9" />
             </svg>
-            <span>New seed</span>
+            <span>Surprise</span>
           </button>
         </footer>
       </section>
@@ -184,9 +184,9 @@
               <span class="sr-only">Close</span>
             </button>
           </header>
-          <p class="modal-copy">
-            Geoready geometry with baked vertex colours, meters, origin at the trunk base. Foliage exports as
-            double-sided cards, so it drops straight into game engines and DCC tools.
+          <p class="modal-copy" id="export-copy">
+            Game-ready geometry with baked vertex colours, metres, origin at the trunk base. Foliage exports as
+            double-sided cards, so it drops straight into engines and DCC tools.
           </p>
           <div class="format-list" id="format-list">
             <button class="format is-active" data-format="glb">
@@ -280,6 +280,7 @@
             <div><dt>Scroll</dt><dd>Move closer or further</dd></div>
             <div><dt>Right-drag</dt><dd>Pan and reframe</dd></div>
             <div><dt><span class="key">R</span></dt><dd>Grow a fresh seed</dd></div>
+            <div><dt><span class="key">Shift</span> <span class="key">R</span></dt><dd>Random species + seed</dd></div>
             <div><dt><span class="key">T</span></dt><dd>Toggle turntable</dd></div>
             <div><dt><span class="key">Space</span></dt><dd>Toggle wind</dd></div>
             <div><dt><span class="key">E</span></dt><dd>Open export</dd></div>

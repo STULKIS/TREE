@@ -15,6 +15,7 @@ import {
   presetParams,
   randomSeed,
 } from './generator/params.js';
+import { unpackGeometry } from './generator/transfer.js';
 import { buildPanel } from './ui/panel.js';
 import { exportAs, snapshot } from './export/exporters.js';
 
@@ -69,6 +70,7 @@ const dom = {
   exportSpecies: $('export-species'),
   exportStats: $('export-stats'),
   exportSeed: $('export-seed'),
+  exportCopy: $('export-copy'),
   stats: {
     height: $('stat-height'),
     spread: $('stat-spread'),
@@ -188,32 +190,20 @@ function buildOnMainThread() {
   });
 }
 
-function toGeometry(data) {
-  if (!data) return null;
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(data.position, 3));
-  geometry.setAttribute('normal', new THREE.BufferAttribute(data.normal, 3));
-  geometry.setAttribute('uv', new THREE.BufferAttribute(data.uv, 2));
-  geometry.setAttribute('color', new THREE.BufferAttribute(data.color, 3));
-  geometry.setIndex(new THREE.BufferAttribute(data.index, 1));
-  geometry.computeBoundingSphere();
-  geometry.computeBoundingBox();
-  return geometry;
-}
-
 function applyTree(data) {
   const [minX, minY, minZ, maxX, maxY, maxZ] = data.bounds;
   const bounds = new THREE.Box3(
     new THREE.Vector3(minX, minY, minZ),
     new THREE.Vector3(maxX, maxY, maxZ),
   );
-  const barkGeometry = toGeometry(data.bark);
-  const leafGeometry = toGeometry(data.leaf);
+  const barkGeometry = unpackGeometry(data.bark);
+  const leafGeometry = unpackGeometry(data.leaf);
   state.tree = { barkGeometry, leafGeometry, bounds, stats: data.stats };
 
   const shouldFrame = state.reframe || state.firstTree;
   state.reframe = false;
   stage.setTree(state.tree, { instant: state.firstTree, frame: shouldFrame });
+  stage.setBarkRoughness?.(state.params.bark.roughness);
   updateStats(data.stats);
 
   document.body.classList.remove('is-growing');
@@ -257,7 +247,7 @@ function buildSpeciesRail() {
     button.dataset.species = species.id;
     button.title = `${species.name} — ${species.latin}`;
     button.innerHTML = `
-      <span class="species-thumb"><img src="/thumbs/${species.id}.png" alt="" loading="lazy" draggable="false" /></span>
+      <span class="species-thumb"><img src="${import.meta.env.BASE_URL}thumbs/${species.id}.png" alt="" loading="lazy" draggable="false" /></span>
       <span class="species-name">${species.name}</span>
     `;
     button.addEventListener('click', () => selectSpecies(species.id));
@@ -287,7 +277,20 @@ function markModified() {
 }
 
 function selectSpecies(id) {
-  if (state.species === id) return;
+  if (state.species === id) {
+    // clicking the active species restores its untouched preset
+    if (isModified()) {
+      const seed = state.params.seed;
+      state.params = makeParams(id, seed);
+      refreshPanel();
+      syncSeed();
+      markModified();
+      requestBuild({ frame: true });
+      updateWind();
+      toast(`${SPECIES_BY_ID[id]?.name || 'Tree'} restored to preset`);
+    }
+    return;
+  }
   state.species = id;
   state.params = makeParams(id, state.params.seed);
   state.preset = presetParams(id);
@@ -352,6 +355,11 @@ function setQuality(level) {
 function updateWind() {
   if (!stage) return;
   stage.setWind(state.wind ? state.params.leaves.wind : 0);
+}
+
+function randomSpecies() {
+  const others = SPECIES.filter((species) => species.id !== state.species);
+  return others[Math.floor(Math.random() * others.length)]?.id || state.species;
 }
 
 function shareLink() {
@@ -441,7 +449,21 @@ stage.onUserInteract = () => {
 };
 
 dom.dice.addEventListener('click', () => setSeed(randomSeed(), { announce: true }));
-dom.surprise.addEventListener('click', () => setSeed(randomSeed(), { announce: true }));
+dom.surprise.addEventListener('click', () => {
+  const species = randomSpecies();
+  const seed = randomSeed();
+  state.species = species;
+  state.params = makeParams(species, seed);
+  state.preset = presetParams(species);
+  syncSpeciesCopy();
+  refreshPanel();
+  syncSeed();
+  syncHash();
+  markModified();
+  requestBuild({ frame: true });
+  updateWind();
+  toast(`Surprise — ${SPECIES_BY_ID[species].name} from seed ${seed}`);
+});
 
 dom.seedInput.addEventListener('change', () => {
   const parsed = Number.parseInt(dom.seedInput.value.replace(/[^\d]/g, ''), 10);
@@ -530,6 +552,11 @@ function syncExportSummary() {
     : state.format === 'obj'
       ? 'Download .zip (OBJ + MTL)'
       : 'Download seed .json';
+  dom.exportCopy.textContent = state.format === 'glb'
+    ? 'Game-ready glTF binary with baked vertex colours, metres, origin at the trunk base. Foliage is double-sided, so it drops straight into Blender, Unity, Unreal or Godot.'
+    : state.format === 'obj'
+      ? 'Universal Wavefront geometry, zipped with a matching .mtl and a short readme. Vertex colours are approximated per material because OBJ cannot carry them.'
+      : 'A tiny JSON file holding the seed, species and every parameter. Load it back here to regrow the exact same tree.';
 }
 
 dom.formatList.addEventListener('click', (event) => {
@@ -617,14 +644,19 @@ window.addEventListener('keydown', (event) => {
   const key = event.key.toLowerCase();
   if (key === 'r') {
     event.preventDefault();
-    setSeed(randomSeed(), { announce: true });
+    if (event.shiftKey) {
+      selectSpecies(randomSpecies());
+      setSeed(randomSeed(), { announce: true });
+    } else {
+      setSeed(randomSeed(), { announce: true });
+    }
   } else if (key === 't') {
     dom.rotate.click();
   } else if (key === 'e') {
     dom.exportBtn.click();
   } else if (key === 'h' || key === '?') {
     openModal(dom.helpModal);
-  } else if (event.code === 'Space') {
+  } else if (event.code === 'Space' && !event.target.closest?.('button, a, [role="button"]')) {
     event.preventDefault();
     dom.wind.click();
   }

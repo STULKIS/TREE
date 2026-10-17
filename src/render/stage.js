@@ -50,7 +50,7 @@ function makeGroundTexture() {
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(5, 5);
+  texture.repeat.set(14, 14);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
   return texture;
@@ -114,11 +114,11 @@ export class Stage {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.18;
+    this.renderer.toneMappingExposure = 1.12;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x0c1411, 0.016);
+    this.scene.fog = new THREE.FogExp2(0x0c1411, 0.02);
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 400);
     this.camera.position.set(11, 7.5, 16);
 
@@ -154,10 +154,10 @@ export class Stage {
   }
 
   buildEnvironment() {
-    const hemi = new THREE.HemisphereLight(0xc7d9c4, 0x1b2418, 0.95);
+    const hemi = new THREE.HemisphereLight(0xc7d9c4, 0x1b2418, 0.85);
     this.scene.add(hemi);
 
-    const key = new THREE.DirectionalLight(0xffeed2, 2.55);
+    const key = new THREE.DirectionalLight(0xffeed2, 2.1);
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
     key.shadow.bias = -0.0006;
@@ -167,17 +167,17 @@ export class Stage {
     this.scene.add(key);
     this.scene.add(key.target);
 
-    const fill = new THREE.DirectionalLight(0x9fc4b7, 0.65);
+    const fill = new THREE.DirectionalLight(0x9fc4b7, 0.55);
     fill.position.set(-14, 9, -10);
     this.scene.add(fill);
 
-    const rim = new THREE.DirectionalLight(0xffd8a1, 0.5);
+    const rim = new THREE.DirectionalLight(0xffd8a1, 0.45);
     rim.position.set(-6, 4, -18);
     this.scene.add(rim);
 
     const groundTexture = makeGroundTexture();
     const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(85, 96),
+      new THREE.CircleGeometry(240, 128),
       new THREE.MeshStandardMaterial({
         map: groundTexture,
         color: 0xcfd8c6,
@@ -246,7 +246,7 @@ export class Stage {
       metalness: 0,
       side: THREE.DoubleSide,
       name: 'Sapling_Leaves',
-    }), 0.055, 0.1, 'wind-leaf');
+    }), 0.085, 0.1, 'wind-leaf');
   }
 
   buildTreeGroup() {
@@ -331,7 +331,22 @@ export class Stage {
         direction = new THREE.Vector3(0.55, 0.26, 1).normalize();
       }
     }
-    const destination = target.clone().addScaledVector(direction, distance);
+    let destination = target.clone().addScaledVector(direction, distance);
+
+    // Nudge the subject left of centre on desktop so the control panel does not
+    // sit on top of the crown.
+    const panelShift = window.innerWidth > 900 && !document.body.classList.contains('panel-collapsed')
+      ? 150
+      : 0;
+    if (panelShift > 0) {
+      const viewForward = target.clone().sub(destination).normalize();
+      const right = new THREE.Vector3().crossVectors(viewForward, new THREE.Vector3(0, 1, 0)).normalize();
+      const height = this.renderer.domElement.clientHeight || window.innerHeight;
+      const worldShift = (panelShift / height) * 2 * Math.tan(fov / 2) * distance;
+      const shift = right.multiplyScalar(worldShift);
+      destination = destination.add(shift);
+      target.add(shift);
+    }
 
     if (instant) {
       this.camera.position.copy(destination);
@@ -353,6 +368,10 @@ export class Stage {
   resetView({ instant = false } = {}) {
     if (!this.currentBounds) return;
     this.frameTree(this.currentBounds, { instant, angle: 0.5 });
+  }
+
+  setBarkRoughness(value) {
+    if (typeof value === 'number') this.barkMaterial.roughness = value;
   }
 
   setWind(strength) {

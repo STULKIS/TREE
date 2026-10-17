@@ -33,6 +33,23 @@ test('GLB export emits a valid binary glTF container', async () => {
   assert.ok(names.includes('Foliage'));
   assert.ok(json.meshes.length >= 2);
   assert.ok(json.materials.some((material) => material.name === 'Sapling_Bark'));
+  assert.match(json.asset.generator, /three/i);
+
+  // the binary chunk should describe the same amount of data as the JSON says
+  const binHeaderOffset = 20 + jsonChunkLength;
+  const binLength = buffer.readUInt32LE(binHeaderOffset);
+  assert.equal(binLength, buffer.length - binHeaderOffset - 8);
+  assert.equal(json.buffers[0].byteLength, binLength);
+
+  // POSITION bounds should match the generated tree
+  const positions = json.meshes
+    .flatMap((mesh) => mesh.primitives)
+    .map((primitive) => json.accessors[primitive.attributes.POSITION]);
+  assert.ok(positions.length > 0);
+  const tallest = Math.max(...positions.map((accessor) => accessor.max[1]));
+  assert.ok(Math.abs(tallest - tree.stats.height) < 0.5, 'exported height should match stats');
+  const lowest = Math.min(...positions.map((accessor) => accessor.min[1]));
+  assert.ok(lowest > -0.5 && lowest < 0.5, 'exported tree should sit on the ground plane');
 });
 
 test('foliage can be excluded from the export', async () => {

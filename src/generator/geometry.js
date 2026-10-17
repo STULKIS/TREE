@@ -184,28 +184,3 @@ export function addTube(builder, samples, sides, options) {
     }
   }
 }
-
-/** Adds a cone-like cap at the tip of a tube. */
-export function addTipCap(builder, lastSample, frame, sides, color) {
-  const apex = lastSample.center.clone().addScaledVector(frame.tangent, lastSample.radius * 1.6);
-  const tipIndex = builder.addVertex(apex.x, apex.y, apex.z, 0.5, 0, color);
-  const ringStart = builder.vertexCount;
-
-  for (let j = 0; j < sides; j += 1) {
-    const angle = (j / sides) * TAU;
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    const radius = lastSample.radius;
-    builder.addVertex(
-      lastSample.center.x + (frame.normal.x * cos + frame.binormal.x * sin) * radius,
-      lastSample.center.y + (frame.normal.y * cos + frame.binormal.y * sin) * radius,
-      lastSample.center.z + (frame.normal.z * cos + frame.binormal.z * sin) * radius,
-      0.5,
-      0,
-      color,
-    );
-  }
-  for (let j = 0; j < sides; j += 1) {
-    builder.addTriangle(ringStart + j, ringStart + ((j + 1) % sides), tipIndex);
-  }
-}

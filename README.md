@@ -23,7 +23,10 @@ breeze, and take the mesh into Blender, Unity, Unreal or Godot as GLB or OBJ.
 - **Export that respects game engines** — binary glTF (`.glb`) with vertex colours and
   double-sided leaf material, or Wavefront OBJ + MTL zipped together with a README. Units are
   metres, origin at the trunk base, +Y up.
-- **Seed sharing** — export the parameter set as JSON to reproduce a tree anywhere.
+- **Seed sharing** — the URL hash carries the species and seed, so the share button copies a link
+  that regrows the exact tree. Designs also export as JSON and can be loaded back.
+- **Preset restore** — click the already-selected species in the field guide to undo sculpting
+  and return to its untouched preset.
 
 ## Running it
 
@@ -54,6 +57,7 @@ node tools/render-thumbs.mjs
 | `T` | Turntable on/off |
 | `Space` | Wind on/off |
 | `E` | Export dialog |
+| `Shift` + `R` | Random species and seed |
 | `H` | Help |
 
 ## How the generator works
@@ -81,7 +85,8 @@ src/ui/          schema-driven control panel and control primitives
 src/export/      GLB / OBJ+MTL / parameter exporters
 src/main.js      app state, interactions, hotkeys, export flow
 tools/           offline software rasterizer for previewing silhouettes in CI
-test/            node:test suites for the generator, panel, exporters and markup
+test/            node:test suites for the generator, worker transfer, panel, exporters,
+                  markup contract and a full app boot against a stubbed WebGL stage
 public/thumbs    species thumbnails rendered from the generator itself
 ```
 

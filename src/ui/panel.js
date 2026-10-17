@@ -158,6 +158,7 @@ export function buildPanel({
         onResetChange?.(params);
       },
     });
+    const rootHint = (value) => `${Math.round(value)} ${Math.round(value) === 1 ? 'root' : 'roots'}`;
     const count = createSlider({
       label: 'Surface roots',
       value: params.roots.count,
@@ -168,7 +169,7 @@ export function buildPanel({
         commit((p) => {
           p.roots.count = v;
         });
-        section.setHint(`${Math.round(v)} roots`);
+        section.setHint(rootHint(v));
       },
       onCommit: release,
     });
@@ -581,7 +582,7 @@ export function buildPanel({
 
   controls.speciesNote = el(
     'p',
-    'control-note',
+    'control-note species-note',
     `${SPECIES_BY_ID[params.species]?.note || ''}`,
   );
   container.prepend(controls.speciesNote);

@@ -844,6 +844,16 @@ input[type='range']:focus-visible {
   line-height: 1.5;
 }
 
+.species-note {
+  margin: 0;
+  padding: 16px 22px 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 /* panel footer */
 
 .panel-foot {
